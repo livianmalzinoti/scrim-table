@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scrim Table AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex flex-col items-center justify-center p-6">
+    <div class="max-w-md w-full bg-gray-800 p-8 rounded-3xl shadow-2xl border border-gray-700">
+        <h1 class="text-2xl font-bold text-center mb-6 text-blue-400">📊 Processador de Scrims</h1>
+        
+        <form id="uploadForm" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium mb-1 text-gray-400">Chave de Acesso</label>
+                <input type="password" id="authKey" required class="w-full bg-gray-700 border border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium mb-1 text-gray-400">Prints da Scrim (Até 20)</label>
+                <input type="file" id="images" multiple accept="image/*" required class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer">
+            </div>
+
+            <button type="submit" id="btnSubmit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl shadow-lg transition-all active:scale-95">
+                🚀 Gerar Tabela com IA
+            </button>
+        </form>
+
+        <div id="status" class="mt-6 hidden text-center space-y-4">
+            <p id="statusText" class="text-blue-300 animate-pulse font-medium">IA processando dados...</p>
+            <div id="resultArea" class="mt-4"></div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('uploadForm');
+        const statusDiv = document.getElementById('status');
+        const resultArea = document.getElementById('resultArea');
+        const btn = document.getElementById('btnSubmit');
+
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+            const files = document.getElementById('images').files;
+            const key = document.getElementById('authKey').value;
+
+            statusDiv.classList.remove('hidden');
+            btn.disabled = true;
+            resultArea.innerHTML = '';
+
+            const formData = new FormData();
+            for (let i = 0; i < files.length; i++) {
+                formData.append('data', files[i]);
+            }
+
+            try {
+                // URL configurada conforme seu domínio estático do Ngrok
+                const response = await fetch('https://phymatic-nonarresting-kareen.ngrok-free.dev/webhook/processar-scrim', {
+                    method: 'POST',
+                    headers: { 'Authorization-Key': key },
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = URL.createObjectURL(blob);
+                    resultArea.innerHTML = `
+                        <div class="p-4 bg-gray-700 rounded-xl border border-blue-500/30">
+                            <p class="text-green-400 font-bold mb-2">Tabela Pronta!</p>
+                            <img src="${url}" class="rounded-lg shadow-lg mb-4 w-full">
+                            <a href="${url}" download="tabela_scrim.png" class="inline-block bg-green-600 px-6 py-2 rounded-full text-sm font-bold hover:bg-green-500 transition-all">Download Imagem</a>
+                        </div>
+                    `;
+                    document.getElementById('statusText').innerText = "Sucesso!";
+                } else {
+                    throw new Error();
+                }
+            } catch (err) {
+                resultArea.innerHTML = `<p class="text-red-400">❌ Erro: Verifique a chave ou o servidor.</p>`;
+                document.getElementById('statusText').innerText = "Falha no processo.";
+            } finally {
+                btn.disabled = false;
+            }
+        };
+    </script>
+</body>
+</html>
