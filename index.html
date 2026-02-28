@@ -1,45 +1,90 @@
-// Adiciona a biblioteca de conversão no head do teu HTML
-// <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"></script>
-
-const form = document.getElementById('scrimForm');
-const chat = document.getElementById('chat-box');
-
-form.onsubmit = async (e) => {
-    e.preventDefault();
-    // ... (lógica de envio de imagens permanece igual)
-
-    try {
-        const response = await fetch('https://phymatic-nonarresting-kareen.ngrok-free.dev/webhook/processar-scrim', {
-            method: 'POST',
-            headers: { 'Authorization-Key': key },
-            body: formData
-        });
-
-        const data = await response.json(); // Recebe o JSON com o HTML
-        const htmlBruto = data[0].htmlTable;
-
-        // 1. Cria um elemento invisível para renderizar a tabela
-        const tempDiv = document.createElement('div');
-        tempDiv.style.position = 'absolute';
-        tempDiv.style.left = '-9999px';
-        tempDiv.innerHTML = htmlBruto;
-        document.body.appendChild(tempDiv);
-
-        // 2. Converte o elemento HTML em Imagem PNG
-        const dataUrl = await htmlToImage.toPng(tempDiv);
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scrim Table AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"></script>
+</head>
+<body class="bg-slate-950 text-white min-h-screen flex flex-col items-center p-4">
+    <div class="max-w-xl w-full bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-2xl mt-10">
+        <h1 class="text-2xl font-bold text-center text-blue-400 mb-6">📊 Scrim Processor IA</h1>
         
-        // 3. Exibe no chat
-        const botMsg = document.createElement('div');
-        botMsg.className = 'chat-msg bot shadow-sm';
-        botMsg.innerHTML = `
-            <p class="font-bold">✅ Tabela Gerada!</p>
-            <img src="${dataUrl}" class="mt-2 rounded-lg border w-full">
-            <a href="${dataUrl}" download="scrim_tabela.png" class="text-blue-600 underline text-sm mt-2 block">Baixar Imagem</a>
-        `;
-        chat.appendChild(botMsg);
+        <form id="scrimForm" class="space-y-4">
+            <input type="password" id="key" placeholder="Senha de Acesso" required 
+                class="w-full bg-slate-800 border-slate-700 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500">
+            
+            <div class="border-2 border-dashed border-slate-700 rounded-xl p-6 text-center">
+                <input type="file" id="images" multiple accept="image/*" required class="hidden">
+                <label for="images" class="cursor-pointer text-slate-400 hover:text-blue-400 transition-colors">
+                    📁 Clique para selecionar as 20 imagens
+                </label>
+                <p id="fileCount" class="text-xs mt-2 text-slate-500"></p>
+            </div>
+
+            <button type="submit" id="btn" class="w-full bg-blue-600 hover:bg-blue-500 font-bold py-4 rounded-xl shadow-lg transition-all active:scale-95">
+                🚀 Gerar Tabela Agora
+            </button>
+        </form>
+
+        <div id="status" class="hidden mt-8 space-y-4">
+            <div id="loading" class="text-center animate-pulse text-blue-400">Processando imagens no n8n...</div>
+            <div id="resultWrapper" class="bg-white rounded-lg p-2 overflow-hidden">
+                <div id="tableContent"></div>
+            </div>
+            <button id="downloadBtn" class="w-full bg-emerald-600 py-3 rounded-xl font-bold hidden">⬇️ Baixar Tabela (PNG)</button>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('scrimForm');
+        const imagesInput = document.getElementById('images');
         
-        document.body.removeChild(tempDiv); // Limpa o rastro
-    } catch (err) {
-        console.error(err);
-    }
-};
+        imagesInput.onchange = () => {
+            document.getElementById('fileCount').innerText = `${imagesInput.files.length} arquivos selecionados`;
+        };
+
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btn');
+            const status = document.getElementById('status');
+            const tableContent = document.getElementById('tableContent');
+            
+            btn.disabled = true;
+            status.classList.remove('hidden');
+            
+            const formData = new FormData();
+            for (let f of imagesInput.files) formData.append('data', f);
+
+            try {
+                const res = await fetch('https://phymatic-nonarresting-kareen.ngrok-free.dev/webhook/processar-scrim', {
+                    method: 'POST',
+                    headers: { 'Authorization-Key': document.getElementById('key').value },
+                    body: formData
+                });
+
+                const data = await res.json();
+                // O seu n8n retorna [{ json: { htmlTable: "..." } }]
+                tableContent.innerHTML = data[0].htmlTable;
+                
+                document.getElementById('loading').classList.add('hidden');
+                const downloadBtn = document.getElementById('downloadBtn');
+                downloadBtn.classList.remove('hidden');
+
+                downloadBtn.onclick = async () => {
+                    const dataUrl = await htmlToImage.toPng(tableContent);
+                    const link = document.createElement('a');
+                    link.download = 'tabela-scrim.png';
+                    link.href = dataUrl;
+                    link.click();
+                };
+            } catch (err) {
+                alert('Erro ao conectar com o n8n. Verifique se o notebook está ligado.');
+            } finally {
+                btn.disabled = false;
+            }
+        };
+    </script>
+</body>
+</html>
